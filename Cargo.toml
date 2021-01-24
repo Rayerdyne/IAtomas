@@ -8,13 +8,4 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.4.0"
-
-[dependencies.gtk]
-git = "https://github.com/gtk-rs/gtk-rs.git"
-features = ["v3_16"]
-
-[dependencies.gdk]
-git = "https://github.com/gtk-rs/gtk-rs.git"
-
-[dependencies.gio]
-git = "https://github.com/gtk-rs/gtk-rs.git"
+sfml = "0.15.1"

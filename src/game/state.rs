@@ -1,39 +1,101 @@
+/// Represents anything we can get when "drawing a new atom", that is, it takes
+/// the `Atom`s, `Plus`, `Minus`, `DarkPlus` into account.
+///
+/// Antimatter will not be taken into account.
+#[derive(Debug, Clone)]
+pub enum Atom {
+    Plus, 
+    DarkPlus,
+    Minus,
+    Atom(u8),
+}
 
-type Atom = u8;
+/// Represents the state of the game at some point.
+///
+/// Contains:
+///
+/// - `atoms`: a vector of `Atom`s
+///
+/// - `shift`: the shift, that is, as the vector of atoms is the least "word" 
+/// of every possible rotation, as we consider two rotation of the same atoms 
+/// to be the same, and symmetry doesn't matter neither.
+///
+/// - `time`: the number of turns played since the start
+///
+/// - `incoming`: an option containing the incoming atom.
+///
+/// - `score`: the score so far
+#[derive(Debug, Clone)]
 pub struct GameState {
-    atoms: Vec<Atom>,
-    shift: usize,
-    time: u32,
+    pub atoms: Vec<Atom>,
+    pub shift: usize,
+    pub time: u32,
+    pub incoming: Option<Atom>,
+    pub score: u32,
 }
 
 impl GameState {
+    /// Creates a new empty `GameState`.
     fn new() -> Self {
         GameState {
             atoms: Vec::new(),
             shift: 0,
-            time: 0
+            time: 0,
+            incoming: None,
+            score: 0
+        }
+    }
+
+    /// Creates the `GameState` for the beginning of the game. 
+    pub fn start_game() -> Self {
+        let mut new = GameState::new();
+        new.atoms.extend_from_slice(&[Atom::Atom(0), Atom::Atom(0),
+                                      Atom::Atom(1), Atom::Atom(0)]);
+        new
+    }
+}
+
+impl std::cmp::PartialEq for Atom {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Atom::Plus => match other {
+                Atom::Plus => true,
+                _ => false
+            }
+            Atom::Minus => match other {
+                Atom::Minus => true,
+                _ => false
+            }
+            Atom::DarkPlus => match other {
+                Atom::DarkPlus => true,
+                _ => false
+            }
+            Atom::Atom(z1) => match other {
+                Atom::Atom(z2) => z1 == z2,
+                _ => false
+            }
         }
     }
 }
 
 impl std::cmp::PartialEq for GameState {
+    /// Symmetrical states are considered equals.
     fn eq(&self, other: &Self) -> bool {
         let n = self.atoms.len();
         if n != other.atoms.len() { return false; }
         let mut clock_wise_ok = true;
         let mut cclock_wise_ok = true;
         for i in 0..n {
-            let k = if i + shift >= n { i + shift - n } else { i + shift };
-            if self.atoms[i] != other.atoms[k] {
+            if self.atoms[i] != other.atoms[i] {
                 clock_wise_ok = false;
             }
-            let k = if shift - i < 0 { shift + n - i } else { shift - i };
-            if self.atoms[i] != other.atoms[k] {
+            if self.atoms[i] != other.atoms[n - i] {
                 cclock_wise_ok = false;
             }
-            if !clock_wise_ok && !clock_wise_ok {
+            if !clock_wise_ok && !cclock_wise_ok {
                 return false;
             }
         }
+        true
     }
 }
