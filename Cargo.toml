@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 lazy_static = "1.4.0"
 sfml = "0.15.1"
+rand_distr = "0.4.0"
+rand = "0.8.2"

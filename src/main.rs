@@ -2,7 +2,7 @@ mod game;
 mod agent;
 
 
-use game::{GameState, draw_state};
+use game::{Board};
 
 use sfml::{
     graphics::{RenderWindow, Font}, 
@@ -23,7 +23,7 @@ fn main() {
 
     let mut window = RenderWindow::new(
         (WIDTH as u32, HEIGHT as u32),
-        "SFML Pong",
+        "IAtomas",
         Style::CLOSE,
         &Default::default(),
     );
@@ -33,7 +33,7 @@ fn main() {
 
     let font = Font::from_file("resources/Aaargh.ttf").unwrap();
 
-    let mut state = GameState::start_game();
+    let board = Board::new(&font);
 
     'mainloop: loop {
         while let Some(event) = window.poll_event() {
@@ -48,7 +48,7 @@ fn main() {
                 _ => {}
             }
         }
-        draw_state(&mut window, &state, &font);
+        board.draw_on(&mut window);
         window.display();
     }
 }

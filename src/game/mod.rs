@@ -12,51 +12,40 @@ use sfml::{
     Shape, Text, Transformable},
 };
 
+/// Holds the data to display an atom on the window
+struct AtomShape<'a> {
+    circle: CircleShape<'a>,
+    symbol: Text<'a>
+}
+
+/// Holds the shapes of the atoms on the board, to avoid regenerating them each
+/// time the window is re-drawn, and the state of the board
+pub struct Board<'a> {
+    atoms: Vec<AtomShape<'a>>,
+    state: GameState
+}
+
 
 const CIRCLE_RADIUS: f32 = 100.0;
+const CIRCLE_XC: f32 = super::HEIGHT / 2.0;
+const CIRCLE_YC: f32 = super::WIDTH  / 2.0;
+
 const ATOM_RADIUS: f32 = 15.0;
 const POINT_COUNT: u32 = 30;
 
-pub fn draw_state(window: &mut RenderWindow, state: &GameState, font: &Font) {
-    let n = state.atoms.len();
+// pub fn draw_board(window: &mut RenderWindow, board: &Board, font: &Font) {
 
-    for i in 0..n {
-        let (color, text) = match state.atoms[i] {
-            Atom::Plus => {     (Color::RED,   "+") },
-            Atom::Minus => {    (Color::BLUE,  "-") }
-            Atom::DarkPlus => { (Color::BLACK, "+") }
-            Atom::Atom(z) => {
-                (zth_color(z), ATOMS_SYMBOLS[z as usize])
-            },
-        };
-        let (x, y) = nth_atom_coord(i, n);
-        println!("i: {}, x: {}, y: {}, color: {:?}", i, x, y, color);
-        let mut shape = CircleShape::new(ATOM_RADIUS, POINT_COUNT);
-        shape.set_position((x - ATOM_RADIUS, y - ATOM_RADIUS));
-        shape.set_fill_color(color);
-        shape.fill_color();
-
-        let mut text_shape = Text::new(text, font, 12);
-        let rect = text_shape.global_bounds();
-        text_shape.set_position((x - rect.width / 2.0, y - rect.height / 2.0));
-        text_shape.set_fill_color(Color::BLACK);
-
-        window.draw(&shape);
-        window.draw(&text_shape);
-    }
-
-}
+// }
 
 fn nth_atom_coord(i: usize, n: usize) -> (f32, f32) {
-    let (xc, yc) = (super::WIDTH / 2.0, super::HEIGHT / 2.0);
     if n == 0 {
-        return (xc, yc - CIRCLE_RADIUS);
+        return (CIRCLE_XC, CIRCLE_YC - CIRCLE_RADIUS);
     }
     let theta = (i as f32) * 2. * PI / (n as f32);
     let dx = CIRCLE_RADIUS as f32 * theta.sin();
     let dy = CIRCLE_RADIUS as f32 * theta.cos();
 
-    (xc + dx, yc - dy)
+    (CIRCLE_XC + dx, CIRCLE_YC - dy)
 }
 
 fn zth_color(z: u8) -> Color {
@@ -72,6 +61,72 @@ fn color_from_hex(s: &str) -> Result <(u8, u8, u8), ParseIntError> {
     let b = u8::from_str_radix(&without_prefix[4..6], 16)?;
 
     Ok((r, g, b))
+}
+
+impl<'a> AtomShape<'a> {
+    fn from_atom(atom: &Atom, font: &'a Font) -> Self {
+        let (color, text) = match *atom {
+            Atom::Plus => {     (Color::RED,   "+") },
+            Atom::Minus => {    (Color::BLUE,  "-") }
+            Atom::DarkPlus => { (Color::BLACK, "+") }
+            Atom::Atom(z) => {
+                (zth_color(z), ATOMS_SYMBOLS[z as usize])
+            },
+            Atom::None => { panic!("uninitialized atom")}
+        };
+        let mut circle_shape = CircleShape::new(ATOM_RADIUS, POINT_COUNT);
+        circle_shape.set_fill_color(color);
+        circle_shape.fill_color();
+
+        let mut text_shape = Text::new(text, font, 12);
+        text_shape.set_fill_color(Color::BLACK);
+
+        Self {
+            circle: circle_shape,
+            symbol: text_shape
+        }
+    }
+
+    fn set_position(&mut self, pos: (f32, f32)) {
+        let (x, y) = pos;
+        self.circle.set_position((x - ATOM_RADIUS, y - ATOM_RADIUS));
+
+        let rect = self.symbol.global_bounds();
+        self.symbol.set_position((x - rect.width / 2.0, y - rect.height / 2.0));
+    }
+
+    fn draw_on(&self, window: &mut RenderWindow) {
+        window.draw(&self.circle);
+        window.draw(&self.symbol);
+    }
+}
+
+impl<'a> Board<'a> {
+    pub fn new(font: &'a Font) -> Self {
+        let state = GameState::start_game();
+        let mut atoms = Vec::new();
+
+        let n = state.atoms.len();
+        for i in 0..n {
+            let mut shape = AtomShape::from_atom(&state.atoms[i], font);
+            shape.set_position(nth_atom_coord(i, n));
+            atoms.push(shape);
+        }
+        let mut shape = AtomShape::from_atom(&state.incoming, font);
+        shape.set_position((CIRCLE_XC, CIRCLE_YC));
+        atoms.push(shape);
+
+        Self {
+            atoms: atoms,
+            state: state
+        }
+    }
+
+    pub fn draw_on(&self, window: &mut RenderWindow) {
+        for atom in &self.atoms {
+            atom.draw_on(window);
+        }
+    }
 }
 
 // extern crate lazy_static;

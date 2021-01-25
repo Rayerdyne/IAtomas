@@ -1,3 +1,10 @@
+use rand_distr::{Binomial, Distribution};
+use lazy_static::lazy_static;
+
+lazy_static!{
+    static ref BINOM: Binomial = Binomial::new(7, 0.5).unwrap();
+}
+
 /// Represents anything we can get when "drawing a new atom", that is, it takes
 /// the `Atom`s, `Plus`, `Minus`, `DarkPlus` into account.
 ///
@@ -8,6 +15,7 @@ pub enum Atom {
     DarkPlus,
     Minus,
     Atom(u8),
+    None,
 }
 
 /// Represents the state of the game at some point.
@@ -30,7 +38,7 @@ pub struct GameState {
     pub atoms: Vec<Atom>,
     pub shift: usize,
     pub time: u32,
-    pub incoming: Option<Atom>,
+    pub incoming: Atom,
     pub score: u32,
 }
 
@@ -41,7 +49,7 @@ impl GameState {
             atoms: Vec::new(),
             shift: 0,
             time: 0,
-            incoming: None,
+            incoming: Atom::None,
             score: 0
         }
     }
@@ -51,7 +59,14 @@ impl GameState {
         let mut new = GameState::new();
         new.atoms.extend_from_slice(&[Atom::Atom(0), Atom::Atom(0),
                                       Atom::Atom(1), Atom::Atom(0)]);
+        new.draw_incoming();
         new
+    }
+
+    /// Draws the incoming atom (if already, do nothing)
+    pub fn draw_incoming(&mut self) {
+        let v = BINOM.sample(&mut rand::thread_rng());
+        self.incoming = Atom::Atom(v as u8);
     }
 }
 
@@ -61,17 +76,21 @@ impl std::cmp::PartialEq for Atom {
             Atom::Plus => match other {
                 Atom::Plus => true,
                 _ => false
-            }
+            },
             Atom::Minus => match other {
                 Atom::Minus => true,
                 _ => false
-            }
+            },
             Atom::DarkPlus => match other {
                 Atom::DarkPlus => true,
                 _ => false
-            }
+            },
             Atom::Atom(z1) => match other {
                 Atom::Atom(z2) => z1 == z2,
+                _ => false
+            },
+            Atom::None => match other {
+                Atom::None => true,
                 _ => false
             }
         }
