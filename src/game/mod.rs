@@ -24,6 +24,9 @@ pub struct AtomShape<'a> {
 #[derive(Clone, Debug)]
 pub struct Board<'a, 'b> {
     state: GameState<'a>,
+    minused: bool,
+    best_val: u8,
+    best: Text<'b>,
     font: &'b Font,
 }
 
@@ -34,6 +37,9 @@ const CIRCLE_YC: f32 = super::WIDTH  / 2.0;
 
 const ATOM_RADIUS: f32 = 15.0;
 const POINT_COUNT: u32 = 30;
+
+const BEST_X: f32 = CIRCLE_XC;
+const BEST_Y: f32 = 20.0;
 
 // pub fn draw_board(window: &mut RenderWindow, board: &Board, font: &Font) {
 
@@ -94,11 +100,11 @@ impl<'a> AtomShape<'a> {
         }
     }
 
-    fn change_to(&mut self, atom_type: &AtomType) {
-        let (color, text) = atom_color_text(atom_type);
-        self.circle.set_fill_color(color);
-        self.symbol.set_string(text);
-    }
+    // fn change_to(&mut self, atom_type: &AtomType) {
+    //     let (color, text) = atom_color_text(atom_type);
+    //     self.circle.set_fill_color(color);
+    //     self.symbol.set_string(text);
+    // }
 
     fn set_position(&mut self, pos: (f32, f32)) {
         let (x, y) = pos;
@@ -123,8 +129,16 @@ impl<'a> AtomShape<'a> {
 impl<'a, 'b: 'a> Board<'a, 'b> {
     /// Create a new `Board` with given `GameState`, no shape built
     pub fn from_state(state: GameState<'a>, font: &'b Font) -> Self {
+        let mut text = Text::new(ATOMS_NAMES[0], font, 20);
+        text.set_fill_color(Color::YELLOW);
+        text.set_outline_thickness(0.3);
+        let rect = text.global_bounds();
+        text.set_position((BEST_X - rect.width / 2.0, BEST_Y));
         Self {
             state: state,
+            minused: false,
+            best: text,
+            best_val: 0,
             font: font
         }
     }
@@ -187,6 +201,7 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         if let Some(shape) = &self.state.incoming.shape {
             shape.draw_on(window);
         }
+        window.draw(&self.best);
     }
 
     /// Reacts to a click event in `x0`, `y0`.
@@ -194,14 +209,58 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         let (x, y) = (x0 as f32, y0 as f32);
         let (dx, dy) = (x - CIRCLE_XC, y - CIRCLE_YC);
 
-        if dx.powi(2) + dy.powi(2) < (CIRCLE_RADIUS + ATOM_RADIUS).powi(2) {
-            self.shot_atom(dx, dy);
+        let d_squared = dx.powi(2) + dy.powi(2);
+
+        if d_squared < ATOM_RADIUS.powi(2) && self.minused {
+            self.state.incoming = Atom::from_type_with_shape(AtomType::Plus,
+                                            self.font, (CIRCLE_XC, CIRCLE_YC));
+            self.minused = false;
         }
+        else if  d_squared < (CIRCLE_RADIUS + ATOM_RADIUS).powi(2) {
+            if self.state.incoming.t == AtomType::Minus {
+                self.select_atom(dx, dy);
+            }
+            else {
+                self.shot_atom(dx, dy);
+            }
+        } 
     }
 
     /// Shots the incoming atom, where `dx`, `dy` are the relative distance
     /// to the center of the circle.
     fn shot_atom(&mut self, dx: f32, dy: f32) {
+        let mut theta = Board::angle(dx, dy);
+        let n = self.state.atoms.len();
+        
+        // theta += 360.0 / n as f32;
+        let i = theta * n as f32 / 360.0;
+        let j = ((i.floor() as usize) + n - self.state.shift + 1) % n;
+
+        let max = self.state.play(j as u8);
+        if max > self.best_val {
+            self.best_val = max;
+            self.best.set_string(ATOMS_NAMES[max as usize]);
+        }
+        self.update_shapes();
+    }
+
+    fn select_atom(&mut self, dx: f32, dy: f32) {
+        if dx.powi(2) + dy.powi(2) > (CIRCLE_RADIUS - ATOM_RADIUS).powi(2) {
+            let n = self.state.atoms.len();
+            let theta = Board::angle(dx, dy) + 360.0 / n as f32;
+
+            let i = theta * n as f32 / 360.0;
+            // let j = (i.floor() as usize) % n;
+            let j = ((i.floor() as usize) + n - self.state.shift - 1) % n;
+            self.state.incoming = Atom::from_type_with_shape(
+                self.state.atoms[j].t.clone(),
+                self.font,
+                (CIRCLE_XC, CIRCLE_YC));
+            self.minused = true;
+        }
+    }
+
+    fn angle(dx: f32, dy: f32) -> f32 {
         let mut theta = (-dx / dy).atan();
         theta = theta * 360.0 / (2.0 * PI);
         if dy > 0.0 {
@@ -210,12 +269,6 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
             theta = 360.0 + theta;
         }
 
-        let n = self.state.atoms.len();
-        theta += 360.0 / n as f32;
-        let i = theta * n as f32 / 360.0;
-        let j = (i.floor() as usize) % n;
-
-        self.state.play(j as u8);
-        self.update_shapes();
+        theta
     }
 }

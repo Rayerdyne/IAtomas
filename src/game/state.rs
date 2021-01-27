@@ -66,11 +66,13 @@ impl<'a> Atom<'a> {
         }
     }
 
-    fn from_type_with_shape(t: AtomType, font: &'a Font) -> Self {
-        let shape = Some(AtomShape::from_atom_type(&t, font));
+    pub fn from_type_with_shape(t: AtomType, font: &'a Font, 
+                                position: (f32, f32))        -> Self {
+        let mut shape = AtomShape::from_atom_type(&t, font);
+        shape.set_position(position);
         Self {
             t: t,
-            shape: shape
+            shape: Some(shape)
         }
     }
 
@@ -81,7 +83,7 @@ impl<'a> Atom<'a> {
         }
     }
 
-    fn copy(other: &Self) -> Self {
+    pub fn copy(other: &Self) -> Self {
         Self {
             t: other.t.clone(),
             shape: None,
@@ -130,7 +132,10 @@ impl<'a> GameState<'a> {
     }
 
     /// Shot the incoming atom at the n-th position and update the `GameState`
-    pub fn play(&mut self, k: u8) {
+    ///
+    /// Returns: the value of the highest atom that has reacted (may be 0 if 
+    /// none)
+    pub fn play(&mut self, k: u8) -> u8{
         let i = k as usize;
         self.atoms.insert(i, Atom::copy(&self.incoming));
         if let AtomType::Plus = self.incoming.t {
@@ -144,24 +149,41 @@ impl<'a> GameState<'a> {
         }
 
         self.time += 1;
-        self.update_plus();
+        let max = self.update_plus();
         self.draw_incoming();
+        max
     }
 
     /// Makes the reactions with pluses atoms
-    pub fn update_plus(&mut self) {
-        for i in 0..self.pluses.len() {
-            self.react(self.pluses[i]);
+    ///
+    /// Returns: the value of the highest atom that has reacted (may be 0 if 
+    /// none)
+    pub fn update_plus(&mut self) -> u8 {
+        let mut reaction = true;
+        let mut max: u8 = 0;
+        while reaction {
+            reaction = false;
+            for i in 0..self.pluses.len() {
+                let m = self.react(self.pluses[i]);
+                if m > 0 {
+                    reaction = true;
+                    if m > max { max = m; }
+                }
+            }
         }
+        max
     }
 
     /// Attempts to react atom at index k
-    pub fn react(&mut self, k: usize) {
+    pub fn react(&mut self, mut k: usize) -> u8 {
         let mut n = self.atoms.len();
         let mut k_prev = safe(k, -1, n);
         let mut k_next = safe(k, 1,  n);
+        k %= n;
+
         // score increment
         let mut ds = 1;
+        let mut final_value: u8 = 0;
         while self.atoms[k_prev] == self.atoms[k_next] ||
               self.atoms[k].t == AtomType::DarkPlus {
 
@@ -175,7 +197,7 @@ impl<'a> GameState<'a> {
                 _ => break
             };
 
-            let mut z_f = if dark { 
+            let z_f = if dark { 
                 let z1 = self.atoms[k_prev].value();
                 let z2 = self.atoms[k_next].value();
                 if z1 > z2 { z1 + 3 }
@@ -185,15 +207,18 @@ impl<'a> GameState<'a> {
                 else            { z_in + 1 }
             };
 
-            self.atoms.remove(k_prev);
-            self.atoms.remove(k_next);
             self.atoms[k] = Atom::from_type(AtomType::Atom(z_f));
+            self.atoms.remove(k_next);
+            self.atoms.remove(safe(k, -1, n-1));
+            final_value = z_f;
             n = self.atoms.len();
 
             k_prev = safe(k, -1, n);
             k_next = safe(k, 1,  n);
+            k %= n;
             if k_next == k_prev { break; }
         }
+        final_value
     }
 
     /// "Reorder" the `atoms` vector. In facts, finds the new `shift` value as
@@ -230,10 +255,10 @@ fn safe(i: usize, di: i32, n: usize) -> usize {
     let i2 = i as i32;
     let n2 = n as i32;
     if i2 + di < 0 {
-        ((i2 + n2 + di) %n2) as usize
+        ((i2 + n2 + di) % n2) as usize
     }
     else { 
-        (i2 + di % n2) as usize
+        ((i2 + di) % n2) as usize
     }
 }
 
