@@ -8,21 +8,23 @@ use std::f32::consts::PI;
 use std::num::ParseIntError;
 
 use sfml::{
-    graphics::{CircleShape, Color, Font, Rect, RenderTarget, RenderWindow, 
+    graphics::{CircleShape, Color, Font, RenderTarget, RenderWindow, 
     Shape, Text, Transformable},
 };
 
 /// Holds the data to display an atom on the window
-struct AtomShape<'a> {
+#[derive(Clone, Debug)]
+pub struct AtomShape<'a> {
     circle: CircleShape<'a>,
     symbol: Text<'a>
 }
 
 /// Holds the shapes of the atoms on the board, to avoid regenerating them each
 /// time the window is re-drawn, and the state of the board
-pub struct Board<'a> {
-    atoms: Vec<AtomShape<'a>>,
-    state: GameState
+#[derive(Clone, Debug)]
+pub struct Board<'a, 'b> {
+    state: GameState<'a>,
+    font: &'b Font,
 }
 
 
@@ -63,17 +65,22 @@ fn color_from_hex(s: &str) -> Result <(u8, u8, u8), ParseIntError> {
     Ok((r, g, b))
 }
 
+fn atom_color_text<'a>(t: &AtomType) -> (Color, &'static str) {
+    match *t {
+        AtomType::Plus => {     (Color::RED,   "+") },
+        AtomType::Minus => {    (Color::BLUE,  "-") }
+        AtomType::DarkPlus => { (Color::BLACK, "+") }
+        AtomType::Atom(z) => {
+            (zth_color(z), ATOMS_SYMBOLS[z as usize])
+        },
+        AtomType::None => { panic!("uninitialized atom")}
+    }
+}
+
 impl<'a> AtomShape<'a> {
-    fn from_atom(atom: &Atom, font: &'a Font) -> Self {
-        let (color, text) = match *atom {
-            Atom::Plus => {     (Color::RED,   "+") },
-            Atom::Minus => {    (Color::BLUE,  "-") }
-            Atom::DarkPlus => { (Color::BLACK, "+") }
-            Atom::Atom(z) => {
-                (zth_color(z), ATOMS_SYMBOLS[z as usize])
-            },
-            Atom::None => { panic!("uninitialized atom")}
-        };
+    fn from_atom_type(atom_type: &AtomType, font: &'a Font) -> Self {
+        let (color, text) = atom_color_text(atom_type);
+        // println!("{:?} -> {}", atom_type, text);
         let mut circle_shape = CircleShape::new(ATOM_RADIUS, POINT_COUNT);
         circle_shape.set_fill_color(color);
         circle_shape.fill_color();
@@ -87,83 +94,128 @@ impl<'a> AtomShape<'a> {
         }
     }
 
+    fn change_to(&mut self, atom_type: &AtomType) {
+        let (color, text) = atom_color_text(atom_type);
+        self.circle.set_fill_color(color);
+        self.symbol.set_string(text);
+    }
+
     fn set_position(&mut self, pos: (f32, f32)) {
         let (x, y) = pos;
         self.circle.set_position((x - ATOM_RADIUS, y - ATOM_RADIUS));
 
         let rect = self.symbol.global_bounds();
-        self.symbol.set_position((x - rect.width / 2.0, y - rect.height / 2.0));
+        let pos = (x - rect.width / 2.0, y - rect.height / 2.0);
+        // println!("{:?} vs {:?}", pos, (x, y));
+        self.symbol.set_position(pos);
     }
 
     fn draw_on(&self, window: &mut RenderWindow) {
         window.draw(&self.circle);
         window.draw(&self.symbol);
+        
+        // println!("write: {} @\t {:?}\t {:?}", self.symbol.string().to_rust_string(),
+        //                               self.symbol.position(),
+        //                               self.symbol.fill_color());
     }
 }
 
-impl<'a> Board<'a> {
-    pub fn new(font: &'a Font) -> Self {
-        let state = GameState::start_game();
-        let mut atoms = Vec::new();
-
-        let n = state.atoms.len();
-        for i in 0..n {
-            let mut shape = AtomShape::from_atom(&state.atoms[i], font);
-            shape.set_position(nth_atom_coord(i, n));
-            atoms.push(shape);
-        }
-        let mut shape = AtomShape::from_atom(&state.incoming, font);
-        shape.set_position((CIRCLE_XC, CIRCLE_YC));
-        atoms.push(shape);
-
+impl<'a, 'b: 'a> Board<'a, 'b> {
+    /// Create a new `Board` with given `GameState`, no shape built
+    pub fn from_state(state: GameState<'a>, font: &'b Font) -> Self {
         Self {
-            atoms: atoms,
-            state: state
+            state: state,
+            font: font
         }
     }
 
-    pub fn draw_on(&self, window: &mut RenderWindow) {
-        for atom in &self.atoms {
-            atom.draw_on(window);
+    /// Create a new `Board` with default starting board
+    pub fn new(font: &'b Font) -> Self {
+        Self::from_state(GameState::start_game(), font)
+    }
+
+    /// Updates all the shapes, built the ones that are not yet built
+    pub fn update_shapes(&mut self) {
+        let n = self.state.atoms.len();
+        for i in 0..n {
+            let j = i + self.state.shift % n;
+            let a = &mut self.state.atoms[j];
+            match a.shape.as_mut() {
+                Some(shape) => shape.set_position(nth_atom_coord(j, n)),
+                None => {
+                    let mut new_shape = AtomShape::from_atom_type(&a.t, 
+                                                                   self.font);
+                    new_shape.set_position(nth_atom_coord(j, n));
+                    a.shape = Some(new_shape);
+                }
+            }
         }
+
+        let mut shape = AtomShape::from_atom_type(&self.state.incoming.t, 
+                                                   self.font);
+        shape.set_position((CIRCLE_XC, CIRCLE_YC));
+        self.state.incoming.shape = Some(shape);
+    }
+
+
+    // /// Regenrates the shapes, as I'm lazy
+    // pub fn regen(&mut self) {
+    //     self.atoms.clear();
+        
+    //     let n = self.state.atoms.len();
+    //     for i in 0..n {
+    //         let j = i + self.state.shift % n;
+    //         let mut shape = AtomShape::from_atom_type(&self.state.atoms[j].t,
+    //                                               self.font);
+    //         shape.set_position(nth_atom_coord(j, n));
+    //         self.atoms.push(shape);
+    //     }
+    //     let mut shape = AtomShape::from_atom_type(&self.state.incoming.t, 
+    //                                                self.font);
+    //     shape.set_position((CIRCLE_XC, CIRCLE_YC));
+    //     self.atoms.push(shape);
+
+    // }
+
+    /// Draws all the atoms on `window`
+    pub fn draw_on(&self, window: &mut RenderWindow) {
+        for atom in &self.state.atoms {
+            if let Some(shape) = &atom.shape {
+                shape.draw_on(window);
+            }
+        }
+        if let Some(shape) = &self.state.incoming.shape {
+            shape.draw_on(window);
+        }
+    }
+
+    /// Reacts to a click event in `x0`, `y0`.
+    pub fn click(&mut self, x0: i32, y0: i32) {
+        let (x, y) = (x0 as f32, y0 as f32);
+        let (dx, dy) = (x - CIRCLE_XC, y - CIRCLE_YC);
+
+        if dx.powi(2) + dy.powi(2) < (CIRCLE_RADIUS + ATOM_RADIUS).powi(2) {
+            self.shot_atom(dx, dy);
+        }
+    }
+
+    /// Shots the incoming atom, where `dx`, `dy` are the relative distance
+    /// to the center of the circle.
+    fn shot_atom(&mut self, dx: f32, dy: f32) {
+        let mut theta = (-dx / dy).atan();
+        theta = theta * 360.0 / (2.0 * PI);
+        if dy > 0.0 {
+            theta = 180.0 + theta;
+        } else if dx < 0.0 && dy < 0.0 {
+            theta = 360.0 + theta;
+        }
+
+        let n = self.state.atoms.len();
+        theta += 360.0 / n as f32;
+        let i = theta * n as f32 / 360.0;
+        let j = (i.floor() as usize) % n;
+
+        self.state.play(j as u8);
+        self.update_shapes();
     }
 }
-
-// extern crate lazy_static;
-
-// use std::sync::Mutex;
-
-// use lazy_static::lazy_static;
-
-
-// struct StatePointer<'a> {
-//     state: Option<&'a GameState>,
-//     x: f64
-// }
-
-// lazy_static!{
-//     static ref STATE_POINTER: Mutex<StatePointer<'static>> 
-//         = Mutex::new(StatePointer::new());
-// }
-
-// fn function() -> f64 {
-//     STATE_POINTER.lock().unwrap().add_x(1.0);
-//     STATE_POINTER.lock().unwrap().get_x()
-// }
-
-// impl StatePointer<'_> {
-//     fn new() -> Self {
-//         StatePointer {
-//             state: None,
-//             x: 100.0
-//         }
-//     }
-
-//     fn get_x(&self) -> f64 {
-//         self.x
-//     }
-
-//     fn add_x(&mut self, y: f64) {
-//         self.x = self.x + y;
-//     }
-// }

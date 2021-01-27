@@ -5,16 +5,9 @@ mod agent;
 use game::{Board};
 
 use sfml::{
-    graphics::{RenderWindow, Font}, 
-    window::{Event, Style}
+    graphics::{Color, Font, RenderTarget, RenderWindow}, 
+    window::{Event, Style, mouse::Button}
 };
-
-// use lazy_static::lazy_static;
-
-// lazy_static!{
-//     static ref STATE: Mutex<GameState> = 
-//         Mutex::new(GameState::start_game());
-// }
 
 const WIDTH: f32 = 400.0;
 const HEIGHT: f32 = 400.0;
@@ -33,21 +26,26 @@ fn main() {
 
     let font = Font::from_file("resources/Aaargh.ttf").unwrap();
 
-    let board = Board::new(&font);
+    let mut board = Board::new(&font);
+    board.draw_on(&mut window);
+    window.display();
 
     'mainloop: loop {
         while let Some(event) = window.poll_event() {
             match event {
                 Event::Closed => { break 'mainloop; },
-                Event::MouseButtonPressed { button, x, y } => {
-                    // ...
-                },
+                // Event::MouseButtonPressed { button, x, y } => {
+                //     // ...
+                // },
                 Event::MouseButtonReleased { button, x, y } => {
-                    // ...
+                    if button == Button::Left {
+                        board.click(x, y);
+                    }
                 },
                 _ => {}
             }
         }
+        window.clear(Color::rgb(0, 0, 0));
         board.draw_on(&mut window);
         window.display();
     }
