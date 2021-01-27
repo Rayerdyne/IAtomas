@@ -234,12 +234,15 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         
         // theta += 360.0 / n as f32;
         let i = theta * n as f32 / 360.0;
-        let j = ((i.floor() as usize) + n - self.state.shift + 1) % n;
+        let j = if n == 0 { 0 } else 
+            { ((i.floor() as usize) + n - self.state.shift + 1) % n };
 
         let max = self.state.play(j as u8);
         if max > self.best_val {
             self.best_val = max;
             self.best.set_string(ATOMS_NAMES[max as usize]);
+            let rect = self.best.global_bounds();
+            self.best.set_position((BEST_X - rect.width / 2.0, BEST_Y));
         }
         self.update_shapes();
     }
@@ -247,17 +250,19 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
     fn select_atom(&mut self, dx: f32, dy: f32) {
         if dx.powi(2) + dy.powi(2) > (CIRCLE_RADIUS - ATOM_RADIUS).powi(2) {
             let n = self.state.atoms.len();
-            let theta = Board::angle(dx, dy) + 360.0 / n as f32;
+            let theta = Board::angle(dx, dy) + 360.0 / (2.0 * n as f32);
 
             let i = theta * n as f32 / 360.0;
             // let j = (i.floor() as usize) % n;
-            let j = ((i.floor() as usize) + n - self.state.shift - 1) % n;
+            let j = ((i.floor() as usize)) % n;
             self.state.incoming = Atom::from_type_with_shape(
                 self.state.atoms[j].t.clone(),
                 self.font,
                 (CIRCLE_XC, CIRCLE_YC));
+            self.state.atoms.remove(j);
             self.minused = true;
         }
+        self.update_shapes();
     }
 
     fn angle(dx: f32, dy: f32) -> f32 {
@@ -270,5 +275,9 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         }
 
         theta
+    }
+
+    pub fn info(&self) {
+        self.state.info();
     }
 }

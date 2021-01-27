@@ -54,7 +54,6 @@ pub struct GameState<'a> {
     pub time: u32,
     pub incoming: Atom<'a>,
     pub score: u32,
-    pub pluses: Vec<usize>,
     pub shapes: Vec<AtomShape<'a>>
 }
 
@@ -100,7 +99,6 @@ impl<'a> GameState<'a> {
             time: 0,
             incoming: Atom::from_type(AtomType::None),
             score: 0,
-            pluses: Vec::new(),
             shapes: Vec::new(),
         }
     }
@@ -138,9 +136,6 @@ impl<'a> GameState<'a> {
     pub fn play(&mut self, k: u8) -> u8{
         let i = k as usize;
         self.atoms.insert(i, Atom::copy(&self.incoming));
-        if let AtomType::Plus = self.incoming.t {
-            self.pluses.push(i);
-        }
 
         let n = self.atoms.len();
         let l = if i + 1 >= n { 0 } else { i + 1 };
@@ -163,12 +158,16 @@ impl<'a> GameState<'a> {
         let mut max: u8 = 0;
         while reaction {
             reaction = false;
-            for i in 0..self.pluses.len() {
-                let m = self.react(self.pluses[i]);
-                if m > 0 {
-                    reaction = true;
-                    if m > max { max = m; }
+            let mut i = 0;
+            while i < self.atoms.len() {
+                if self.atoms[i].t == AtomType::Plus {
+                    let m = self.react(i);
+                    if  m > 0 {
+                        reaction = true;
+                        if m > max { max = m; }
+                    }
                 }
+                i += 1;
             }
         }
         max
@@ -187,6 +186,7 @@ impl<'a> GameState<'a> {
         while self.atoms[k_prev] == self.atoms[k_next] ||
               self.atoms[k].t == AtomType::DarkPlus {
 
+            println!("reacting two: {:?}", self.atoms[k_prev].t);
             let (z_in, dark) = match self.atoms[k].t {
                 AtomType::Atom(z) => (z, false),
                 AtomType::DarkPlus => (0, true),
@@ -212,10 +212,18 @@ impl<'a> GameState<'a> {
             self.atoms.remove(safe(k, -1, n-1));
             final_value = z_f;
             n = self.atoms.len();
+            if n == 0 {
+                println!("n == 0 ??? ow");
+                return final_value;
+            }
 
+            print!("reacted: {} ", k);
+            k = (k + n - 1) % n;
             k_prev = safe(k, -1, n);
             k_next = safe(k, 1,  n);
-            k %= n;
+            println!("now: (k_prev, k, k_next) = ({}, {}, {}) n: {}", k_prev, k, k_next, n);
+            println!("@k_prev: {:?}", self.atoms[k_prev].t);
+            println!("@k_next: {:?}", self.atoms[k_next].t);
             if k_next == k_prev { break; }
         }
         final_value
@@ -248,6 +256,17 @@ impl<'a> GameState<'a> {
             }
         }
         false
+    }
+
+    /// Prints info about the state 
+    pub fn info(&self) {
+        println!("<state>");
+        println!("shift: {}", self.shift);
+        for i in 0..self.atoms.len() {
+            println!("{}: {:?}", i, self.atoms[i].t);
+        }
+        println!("</state>")
+        
     }
 }
 

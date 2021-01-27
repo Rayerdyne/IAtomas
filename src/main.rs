@@ -47,6 +47,7 @@ fn main() {
         }
         window.clear(Color::rgb(0, 0, 0));
         board.draw_on(&mut window);
+        // board.info();
         window.display();
     }
 }
