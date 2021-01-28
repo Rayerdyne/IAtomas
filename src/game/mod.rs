@@ -262,6 +262,7 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
             self.state.atoms.remove(j);
             self.minused = true;
         }
+        self.state.update_plus();
         self.update_shapes();
     }
 

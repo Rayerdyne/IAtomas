@@ -178,6 +178,7 @@ impl<'a> GameState<'a> {
         let mut n = self.atoms.len();
         let mut k_prev = safe(k, -1, n);
         let mut k_next = safe(k, 1,  n);
+        if k_prev == k_next { return 0; }
         k %= n;
 
         // score increment
@@ -186,7 +187,7 @@ impl<'a> GameState<'a> {
         while self.atoms[k_prev] == self.atoms[k_next] ||
               self.atoms[k].t == AtomType::DarkPlus {
 
-            println!("reacting two: {:?}", self.atoms[k_prev].t);
+            println!("reacting ({}, {}, {})%{} two: {:?}", k_prev, k, k_next, n, self.atoms[k_prev].t);
             let (z_in, dark) = match self.atoms[k].t {
                 AtomType::Atom(z) => (z, false),
                 AtomType::DarkPlus => (0, true),
@@ -218,13 +219,14 @@ impl<'a> GameState<'a> {
             }
 
             print!("reacted: {} ", k);
-            k = (k + n - 1) % n;
+            k = if k == 0 { 0 } else { (k - 1) % n };
             k_prev = safe(k, -1, n);
             k_next = safe(k, 1,  n);
             println!("now: (k_prev, k, k_next) = ({}, {}, {}) n: {}", k_prev, k, k_next, n);
             println!("@k_prev: {:?}", self.atoms[k_prev].t);
+            println!("@k     : {:?}", self.atoms[k].t);
             println!("@k_next: {:?}", self.atoms[k_next].t);
-            if k_next == k_prev { break; }
+            if k_next == k_prev { println!("breaking"); break; }
         }
         final_value
     }
@@ -239,7 +241,9 @@ impl<'a> GameState<'a> {
                 best = i;
             }
         }
+        print!("shift: {} → ", self.shift);
         self.shift = best;
+        println!("{}", self.shift);
     }
 
     /// Returns `true` if the ordering beginning at `i1` is less that the one
