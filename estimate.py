@@ -123,62 +123,6 @@ def llikelihood(theta, x):
     
     return l
 
-def optimize(i, theta0, tol):
-    prev = 0.0001
-    curr = 0.8
-    next = 0.9999
-    theta = theta0.copy()
-    while abs(prev - curr) > tol or abs(curr - next) > tol:
-        theta[i] = prev
-        l_prev = llikelihood(data, theta)
-        theta[i] = curr
-        l_curr = llikelihood(data, theta)
-        theta[i] = next
-        l_next = llikelihood(data, theta)
-        if l_prev < l_curr and l_curr < l_next:
-            tmp = 3 * curr - 2 * next
-            prev = curr
-            curr = next
-            next = tmp
-            print("up")
-        elif l_prev > l_curr and l_curr > l_next:
-            tmp = 3 * prev - 2 * curr
-            if tmp < 0:
-                tmp = 1e-5
-            next = curr
-            curr = prev
-            prev = tmp
-            print("down")
-        else:
-            prev = curr + 0.5 * (prev - curr)
-            next = curr + 0.5 * (next - curr)
-        
-        print(f"({prev:.5}, {curr:.5}, {next:.5}) ->", end="")
-        print(f"({l_prev:.5}, {l_curr:.5}, {l_next:.5})")
-    print(f"{i}--> {curr}")
-    return theta
-
-def gd(theta0, lr, lr2, tol, dx):
-    theta = theta0
-    dtheta = [1, 1, 1, 1, 1]
-    while sum(np.square(dtheta)) > tol:
-        print(theta)
-        l0 = llikelihood(data, theta)
-        for i in range(len(theta)):
-            thetap = theta.copy()
-            thetap[i] = thetap[i] + dx
-            dtheta[i] = llikelihood(data, thetap) - l0
-        
-        for i in range(len(theta)):
-            theta[i] += dtheta[i] * lr[i] * lr2
-            if theta[i] < 0:
-                theta[i] = 0
-    return theta
-
-    # s(t) = a * t + b
-    # n(t) = c * t + d
-    # p(t) = e
-
 x_0 = [0.01251, 0.9945, 0.02646, 1.5091, 0.4999]
 lb = [0,    0, 0,  0, 0]
 ub = [1, 1000, 1, 10, 1]
