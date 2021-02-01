@@ -25,6 +25,10 @@ import numpy as np
 # Yes, somewhat inaccurate but it will be fine
 INFINITY = 10000
 
+# 0:  Plus atom
+# -1: Minus atom
+# -2: Dark Plus atom
+# -3: White atom
 data = [2, 2, -1, 0, 2, 1, 1, 2, 1, 0, 2, 3, 2, 2, 2, 0, 2, 3, 3, 3, 3, 0, -1,
         2, 2, 1, 0, 3, 2, 3, 1, 0, 0, 3, 0, 3, 3, 3, 3, 0, 3, 4, 4, 0, 3, 4, 
         4, 0, 4, 4, 4, 4, 0, -1, 3, 2, 0, 0, 4, 0, 4, 2, 4, 2, 3, 0, 0, 2, 2, 
@@ -82,6 +86,26 @@ data = [2, 2, -1, 0, 2, 1, 1, 2, 1, 0, 2, 3, 2, 2, 2, 0, 2, 3, 3, 3, 3, 0, -1,
         30, 25, 29, 0, 28, 28, 27, 25, 30, 0, 25, 28, 28, 26, -1, 0, 29, 0,
         28, 30, 30, 29, 26, 0, 29, 28, 29, 27 ]
 
+n = len(data)
+nbs = [0] * 4
+for x in data:
+    if x <= 0:
+        nbs[-x] += 1
+
+print(f"Plus: {100 * nbs[0] / n} %")
+print(f"Minus: {100 * nbs[1] / n} %")
+print(f"Dark Plus: {100 * nbs[2] / n}   Known to have 1.25% chance of spawning if score > 750")
+print(f"White: {100 * nbs[3] / n} %     Known to have 1.66% chance of spawning if score > 1500")
+
+n_reg = n - sum(nbs)
+data1 = [None] * n_reg
+i = 0
+for t in range(len(data)):
+    if data[t] > 0:
+        data1[i] = (t, data[t])
+        i += 1
+
+
 """
 Real generalization of nchoosek.
 n: real
@@ -107,36 +131,32 @@ theta = [a, b, c, d, e]
 
 l=\sum [ D_t * ( log(e) + log(1 - e)) + log(nchoosek(n(t), D_t)) ]
 """
-def llikelihood(theta, x):
+def llikelihood(theta, data):
     l = 0
     (a, b, c, d, e) = theta
     t_1 = np.log(e) * np.log(1 - e) if e != 0 else -INFINITY
-    for t in range(len(x)):
-        D_t = abs(x[t] - a * t - b)
+    for i in range(len(data)):
+        t = data[i][0]
+        D_t = abs(data[i][1] - a * t - b)
         m = nchoosek2(c * t + d, D_t)
-        # if m < 0:
-            # print(c * t + d, "  ", D_t, "  -> ", m)
         if m == 0:
             l = l - INFINITY
-            # print("bim")
             continue
         l = l + D_t * t_1 + np.log(m)
     
     return l
 
-def llikelihood2(theta, x):
+def llikelihood2(theta, data):
     l = 0
-    (a, b) = (0.01622755, 1.33932594) # output of regression
+    (a, b) = (0.02352571, 2.05071664) # output of regression
     (c, d, e) = theta
     t_1 = np.log(e) * np.log(1 - e) if e != 0 else -INFINITY
-    for t in range(len(x)):
-        D_t = abs(x[t] - a * t - b)
+    for i in range(len(data)):
+        t = data[i][0]
+        D_t = abs(data[i][1] - a * t - b)
         m = nchoosek2(c * t + d, D_t)
-        # if m < 0:
-            # print(c * t + d, "  ", D_t, "  -> ", m)
         if m == 0:
             l = l - INFINITY
-            # print("bim")
             continue
         l = l + D_t * t_1 + np.log(m)
     
@@ -145,52 +165,43 @@ def llikelihood2(theta, x):
 x_0 = [0.01251, 0.9945, 0.02646, 1.5091, 0.4999]
 lb = [0,    0, 0,  0, 0]
 ub = [1, 1000, 1, 10, 1]
-bounds = Bounds(lb, ub)
 
 y = minimize(fun=llikelihood,
              x0=x_0,
-             args=(data),
+             args=(data1),
              method='TNC',
-             bounds=bounds)
+             bounds=Bounds(lb, ub))
 print(f"->{y.x}")
 
-def prout(theta, x):
+def prout(theta, data):
     (a, b) = theta
     r = 0
-    for t in range(len(x)):
-        r += np.square(x[t] - a * t - b)
+    for i in range(len(data)):
+        r += np.square(data[i][1] - a * data[i][0] - b)
     
     return r
 
-# yreg = minimize(fun=prout,
-#                 x0=[0.1, 10],
-#                 args=(data),
-#                 method='TNC')
-# print(f"lin regr: {yreg.x}")
+yreg = minimize(fun=prout,
+                x0=[0.1, 10],
+                args=(data1),
+                method='TNC')
+print(f"lin regr: {yreg.x}")
+# Output:
+# lin regr: [0.02352571 2.05071664]
 
 y2 = minimize(fun=llikelihood2,
               x0=x_0[2:],
-              args=(data),
+              args=(data1),
               method='TNC',
               bounds=Bounds(lb[2:], ub[2:]))
 print(f"->{y2.x}")
 
-n = len(data)
-n_plus = 0
-n_minus = 0
-n_white = 0
-for x in data:
-    if x == 0:
-        n_plus += 1
-    elif x == -1:
-        n_minus += 1
-    elif x == -3:
-        n_white += 1
+# Output:
+# ->[ 0.02548849 24.7268771   0.02646     1.5091      0.49989991]
+# ->[                         0.02646     1.5091      0.     ]
+#    [0.02352571 2.05071664]
 
-print(f"Plus: {100 * n_plus / n} %")
-print(f"Minus: {100 * n_minus / n} %")
-print(f"White: {100 * n_white / n} %")
 
-# output:
+# old output (with data_raw):
 # ->[ 0.02382462 21.75192308  0.02646     1.5091      0.49989979]
-# ->[0.02646 1.5091  0.     ]
+# ->[                         0.02646     1.5091      0.     ]
