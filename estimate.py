@@ -95,6 +95,7 @@ k: real
 #     b = gamma(k + 1)
 #     c = gamma(n - k + 1)
 #     return a / (b * c)
+# -> this way leads to bad numerical behaviour with great numbers
 def nchoosek2(n, k):
     return binom(round(n), round(k))
 
@@ -123,6 +124,24 @@ def llikelihood(theta, x):
     
     return l
 
+def llikelihood2(theta, x):
+    l = 0
+    (a, b) = (0.01622755, 1.33932594) # output of regression
+    (c, d, e) = theta
+    t_1 = np.log(e) * np.log(1 - e) if e != 0 else -INFINITY
+    for t in range(len(x)):
+        D_t = abs(x[t] - a * t - b)
+        m = nchoosek2(c * t + d, D_t)
+        # if m < 0:
+            # print(c * t + d, "  ", D_t, "  -> ", m)
+        if m == 0:
+            l = l - INFINITY
+            # print("bim")
+            continue
+        l = l + D_t * t_1 + np.log(m)
+    
+    return l
+
 x_0 = [0.01251, 0.9945, 0.02646, 1.5091, 0.4999]
 lb = [0,    0, 0,  0, 0]
 ub = [1, 1000, 1, 10, 1]
@@ -133,4 +152,29 @@ y = minimize(fun=llikelihood,
              args=(data),
              method='TNC',
              bounds=bounds)
-print(f"->{y}")
+print(f"->{y.x}")
+
+def prout(theta, x):
+    (a, b) = theta
+    r = 0
+    for t in range(len(x)):
+        r += np.square(x[t] - a * t - b)
+    
+    return r
+
+# yreg = minimize(fun=prout,
+#                 x0=[0.1, 10],
+#                 args=(data),
+#                 method='TNC')
+# print(f"lin regr: {yreg.x}")
+
+y2 = minimize(fun=llikelihood2,
+              x0=x_0[2:],
+              args=(data),
+              method='TNC',
+              bounds=Bounds(lb[2:], ub[2:]))
+print(f"->{y2.x}")
+
+# output:
+# ->[ 0.02382462 21.75192308  0.02646     1.5091      0.49989979]
+# ->[0.02646 1.5091  0.     ]
