@@ -182,7 +182,7 @@ impl<'a> GameState<'a> {
         k %= n;
 
         // score increment
-        let mut ds = 1;
+        // let mut ds = 1;
         let mut final_value: u8 = 0;
         while self.atoms[k_prev] == self.atoms[k_next] ||
               self.atoms[k].t == AtomType::DarkPlus {

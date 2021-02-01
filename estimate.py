@@ -175,6 +175,22 @@ y2 = minimize(fun=llikelihood2,
               bounds=Bounds(lb[2:], ub[2:]))
 print(f"->{y2.x}")
 
+n = len(data)
+n_plus = 0
+n_minus = 0
+n_white = 0
+for x in data:
+    if x == 0:
+        n_plus += 1
+    elif x == -1:
+        n_minus += 1
+    elif x == -3:
+        n_white += 1
+
+print(f"Plus: {100 * n_plus / n} %")
+print(f"Minus: {100 * n_minus / n} %")
+print(f"White: {100 * n_white / n} %")
+
 # output:
 # ->[ 0.02382462 21.75192308  0.02646     1.5091      0.49989979]
 # ->[0.02646 1.5091  0.     ]
