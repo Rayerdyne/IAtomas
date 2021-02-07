@@ -1,7 +1,8 @@
-use std::{cmp::Ordering, usize};
+use std::{cmp::{Ordering, max}, usize};
 
 use super::AtomShape;
 
+use rand::{Rng, thread_rng};
 use rand_distr::{Bernoulli, Binomial, Distribution};
 use sfml::graphics::Font;
 use lazy_static::lazy_static;
@@ -23,12 +24,26 @@ pub struct Atom<'a> {
 
 #[derive(Clone, Debug, Eq)]
 pub enum AtomType {
-    Plus, 
+    Atom(u8),
     DarkPlus,
     Minus,
-    Atom(u8),
+    Neutrino,
     None,
+    Plus, 
 }
+
+const PLUS_CHANCE: f64 = 0.23;
+const MINUS_CHANCE: f64 = 0.05;
+const DPLUS_CHANCE: f64 = 0.0125;
+const WHITE_CHANCE: f64 = 1_f64 / 60_f64;
+
+const C2: f64 = PLUS_CHANCE + MINUS_CHANCE;
+const C3: f64 = C2 + DPLUS_CHANCE;
+const C4: f64 = C3 + WHITE_CHANCE;
+
+const MIN_DPLUS_SCORE: u32 = 750;
+const MIN_WHITE_SCORE: u32 = 1500;
+
 
 /// Represents the state of the game at some point.
 ///
@@ -117,6 +132,25 @@ impl<'a> GameState<'a> {
 
     /// Draws the incoming atom (overwrites the current one)
     pub fn draw_incoming(&mut self) {
+        let r = rand::thread_rng().gen::<f64>();
+
+        if r < PLUS_CHANCE {
+            // plus atom drawn
+            self.incoming = Atom::from_type(AtomType::Plus);
+        } else if r < C2 {
+            // minus atom drawn
+            self.incoming = Atom::from_type(AtomType::Minus);
+        } else if self.score >= MIN_DPLUS_SCORE && r < C3 {
+            // dark plus atom drawn
+            self.incoming = Atom::from_type(AtomType::DarkPlus);
+        } else if self. score >= MIN_WHITE_SCORE && r < C4 {
+            // white (neutrino) atom drawn
+            self.incoming = Atom::from_type(AtomType::Neutrino);
+        } else {
+            // classic atom drawn
+
+        }
+
         if BERN_02.sample(&mut rand::thread_rng()) {
             self.incoming = Atom::from_type(AtomType::Plus);
         }
@@ -181,11 +215,38 @@ impl<'a> GameState<'a> {
         if k_prev == k_next { return 0; }
         k %= n;
 
-        // score increment
-        // let mut ds = 1;
+        let mut score_multiplier = 1.5;
+
         let mut final_value: u8 = 0;
         while self.atoms[k_prev] == self.atoms[k_next] ||
               self.atoms[k].t == AtomType::DarkPlus {
+
+            self.score += match self.atoms[k].t {
+                AtomType::DarkPlus => {
+                    let z_r = self.atoms[k_prev].value();
+                    let z_l = self.atoms[k_next].value();
+                    let z_max = max(z_r,z_l);
+
+                    ((score_multiplier * (z_max as f64 + 1_f64)).floor()) 
+                    as u32
+                },
+                AtomType::Plus => {
+                    (score_multiplier * 
+                    (self.atoms[k_prev].value() as f64 + 1_f64).floor()) as u32
+                },
+                AtomType::Atom(z_in) => {
+                    let z_out = self.atoms[k_prev].value();
+                    let reaction_score = score_multiplier * 
+                        (z_out as f64 + 1_f64).floor();
+                    let bonus = 2_f64 * score_multiplier * 
+                        (z_out as f64 - z_in as f64 + 1_f64).floor();
+                    
+                    if z_out < z_in { reaction_score as u32 }
+                    else            { (reaction_score + bonus) as u32}
+                },
+                _ => panic!("Reacting impossible stuff")
+            };
+            score_multiplier += 0.5;
 
             println!("reacting ({}, {}, {})%{} two: {:?}", k_prev, k, k_next, n, self.atoms[k_prev].t);
             let (z_in, dark) = match self.atoms[k].t {
@@ -307,6 +368,10 @@ impl std::cmp::PartialEq for AtomType {
             AtomType::None => match other {
                 AtomType::None => true,
                 _ => false
+            },
+            AtomType::Neutrino => match other {
+                AtomType::Neutrino => true,
+                _ => false
             }
         }
     }
@@ -340,6 +405,11 @@ impl std::cmp::Ord for AtomType {
                                | AtomType::Minus => Ordering::Greater,
                 AtomType::DarkPlus => Ordering::Equal,
                 _ => Ordering::Less
+            }
+            AtomType::Neutrino => match other {
+                AtomType::Atom(_) => Ordering::Less,
+                AtomType::Neutrino => Ordering::Equal,
+                _ => Ordering::Greater
             }
             AtomType::Atom(z1) => match other {
                 AtomType::Atom(z2) => z1.cmp(z2),

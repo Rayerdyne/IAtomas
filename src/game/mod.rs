@@ -76,6 +76,7 @@ fn atom_color_text<'a>(t: &AtomType) -> (Color, &'static str) {
         AtomType::Plus => {     (Color::RED,   "+") },
         AtomType::Minus => {    (Color::BLUE,  "-") }
         AtomType::DarkPlus => { (Color::BLACK, "+") }
+        AtomType::Neutrino => { (Color::WHITE, " ") }
         AtomType::Atom(z) => {
             (zth_color(z), ATOMS_SYMBOLS[z as usize])
         },
