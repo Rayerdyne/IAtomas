@@ -41,10 +41,6 @@ const POINT_COUNT: u32 = 30;
 const BEST_X: f32 = CIRCLE_XC;
 const BEST_Y: f32 = 20.0;
 
-// pub fn draw_board(window: &mut RenderWindow, board: &Board, font: &Font) {
-
-// }
-
 fn nth_atom_coord(i: usize, n: usize) -> (f32, f32) {
     if n == 0 {
         return (CIRCLE_XC, CIRCLE_YC - CIRCLE_RADIUS);
@@ -56,12 +52,14 @@ fn nth_atom_coord(i: usize, n: usize) -> (f32, f32) {
     (CIRCLE_XC + dx, CIRCLE_YC - dy)
 }
 
+/// Retreives the color associated to the atom of atomic number `z`
 fn zth_color(z: u8) -> Color {
     let s = ATOMS_COLORS[z as usize];
     let (r, g, b) = color_from_hex(s).expect("Unable to parse color !?");
     Color::rgb(r, g, b)
 }
 
+/// Builds a color RGB triplet from a formatted string.
 fn color_from_hex(s: &str) -> Result <(u8, u8, u8), ParseIntError> {
     let without_prefix = s.trim_start_matches("#");
     let r = u8::from_str_radix(&without_prefix[0..2], 16)?;
@@ -71,6 +69,8 @@ fn color_from_hex(s: &str) -> Result <(u8, u8, u8), ParseIntError> {
     Ok((r, g, b))
 }
 
+/// Retrieves the color and the text (symbol if regular atom, or `+`, `-`, ...)
+/// from an `AtomType`
 fn atom_color_text<'a>(t: &AtomType) -> (Color, &'static str) {
     match *t {
         AtomType::Plus => {     (Color::RED,   "+") },
@@ -85,6 +85,7 @@ fn atom_color_text<'a>(t: &AtomType) -> (Color, &'static str) {
 }
 
 impl<'a> AtomShape<'a> {
+    /// Constructs an atom shape from a given `AtomType`
     fn from_atom_type(atom_type: &AtomType, font: &'a Font) -> Self {
         let (color, text) = atom_color_text(atom_type);
         // println!("{:?} -> {}", atom_type, text);
@@ -107,6 +108,8 @@ impl<'a> AtomShape<'a> {
     //     self.symbol.set_string(text);
     // }
 
+    /// Set the position of the shape, that is, updates the coordinates of the
+    /// atom's circle and symbol
     fn set_position(&mut self, pos: (f32, f32)) {
         let (x, y) = pos;
         self.circle.set_position((x - ATOM_RADIUS, y - ATOM_RADIUS));
@@ -117,6 +120,7 @@ impl<'a> AtomShape<'a> {
         self.symbol.set_position(pos);
     }
 
+    /// Draw this shape on a given `RenderWindow`
     fn draw_on(&self, window: &mut RenderWindow) {
         window.draw(&self.circle);
         window.draw(&self.symbol);
@@ -219,7 +223,10 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         }
         else if  d_squared < (CIRCLE_RADIUS + ATOM_RADIUS).powi(2) {
             if self.state.incoming.t == AtomType::Minus {
-                self.select_atom(dx, dy);
+                self.pick_atom(dx, dy, false);
+            }
+            else if self.state.incoming.t == AtomType::Neutrino {
+                self.pick_atom(dx, dy, true);
             }
             else {
                 self.shot_atom(dx, dy);
@@ -248,7 +255,11 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         self.update_shapes();
     }
 
-    fn select_atom(&mut self, dx: f32, dy: f32) {
+    /// When the current incoming atom is either a Minus or a Neutrino, reacts
+    /// user click at `dx, dy` (measured relatively to the center of the 
+    /// circle). The additional parameter `is_neutrino` will be raised if the 
+    /// incoming atom is a Neutrino.
+    fn pick_atom(&mut self, dx: f32, dy: f32, is_neutrino: bool) {
         if dx.powi(2) + dy.powi(2) > (CIRCLE_RADIUS - ATOM_RADIUS).powi(2) {
             let n = self.state.atoms.len();
             let theta = Board::angle(dx, dy) + 360.0 / (2.0 * n as f32);
@@ -260,13 +271,17 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
                 self.state.atoms[j].t.clone(),
                 self.font,
                 (CIRCLE_XC, CIRCLE_YC));
-            self.state.atoms.remove(j);
-            self.minused = true;
+            if !is_neutrino {
+                self.state.atoms.remove(j);
+                self.minused = true;
+            }
         }
         self.state.update_plus();
         self.update_shapes();
     }
 
+    /// Computes the angle (centered in `(0, 0)`) associated to the coordinates
+    /// `(dy, dy)`.
     fn angle(dx: f32, dy: f32) -> f32 {
         let mut theta = (-dx / dy).atan();
         theta = theta * 360.0 / (2.0 * PI);
@@ -280,10 +295,14 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
     }
 
     #[allow(dead_code)]
+    /// Prints the info about the state in this `Board`
     pub fn info(&self) {
         self.state.info();
     }
 
+    /// Force the incoming atom in the state to a given type.
+    ///
+    /// Obviously, for testing purposes.
     pub fn set_state_incoming(&mut self, atom_type: AtomType) {
         self.state.incoming = Atom::from_type(atom_type);
         self.update_shapes();

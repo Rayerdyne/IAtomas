@@ -1,3 +1,6 @@
+/// Array of all the atoms' symbols.
+///
+/// Extended with Atomas' specific atoms :)
 pub const ATOMS_SYMBOLS: [&str; 131] = [
     "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", 
     "Al", "Si", "P",  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "Va", "Cr", 
@@ -11,6 +14,9 @@ pub const ATOMS_SYMBOLS: [&str; 131] = [
     "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og", "Bn", "Gb",
     "Bb", "Pi", "Sir", "Ea", "Ubp", "H1", "He1", "Li1", "Be1", "B1", "C1" ];
 
+/// Array of all the atoms' full names.
+///
+/// Extended with Atomas' specific atoms :)
 pub const ATOMS_NAMES: [&str; 131] = [
     "Hydrogen",    "Helium",     "Lithium",    "Beryllium",     "Boron",
     "Carbon",      "Nitrogen",   "Oxygen",     "Fluorine",      "Neon",
@@ -40,6 +46,8 @@ pub const ATOMS_NAMES: [&str; 131] = [
     "Unbipentium",  "Hydrogen 1", "Helium 1",  "Lithium 1",     "Beryllium 1",
     "Boron 1",      "Carbon 1" ];
 
+/// Array of all the atoms' color, in formated hexcode (see 
+/// `crate::game::color_from_hex` function).
 pub const ATOMS_COLORS: [&str; 131] = [
     "#63b9d5",  "#d1c991",  "#4c6168",  "#c8c8c8",  "#7d5353",  "#3b3b3b",
     "#2cc6b2",  "#6fec98",  "#ecc46f",  "#be0086",  "#e69d7a",  "#9e80ea", 

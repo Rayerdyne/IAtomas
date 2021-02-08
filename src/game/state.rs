@@ -73,6 +73,7 @@ pub struct GameState<'a> {
 }
 
 impl<'a> Atom<'a> {
+    /// Construct an `Atom` without shape from its `AtomType`
     pub fn from_type(t: AtomType) -> Self {
         Self {
             t: t,
@@ -80,6 +81,7 @@ impl<'a> Atom<'a> {
         }
     }
 
+    /// Construct an `Atom` with a shape from its `AtomType`
     pub fn from_type_with_shape(t: AtomType, font: &'a Font, 
                                 position: (f32, f32))        -> Self {
         let mut shape = AtomShape::from_atom_type(&t, font);
@@ -90,6 +92,7 @@ impl<'a> Atom<'a> {
         }
     }
 
+    /// Return the atomic number of contained atom if regular, else `0`
     fn value(&self) -> u8 {
         match self.t {
             AtomType::Atom(z) => z,
@@ -97,6 +100,7 @@ impl<'a> Atom<'a> {
         }
     }
 
+    /// Build a copy of a given `Atom`
     pub fn copy(other: &Self) -> Self {
         Self {
             t: other.t.clone(),
@@ -335,6 +339,7 @@ impl<'a> GameState<'a> {
     }
 }
 
+/// Helper function to add or subtract safely modulo n
 fn safe(i: usize, di: i32, n: usize) -> usize {
     let i2 = i as i32;
     let n2 = n as i32;
