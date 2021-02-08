@@ -230,7 +230,7 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
     /// Shots the incoming atom, where `dx`, `dy` are the relative distance
     /// to the center of the circle.
     fn shot_atom(&mut self, dx: f32, dy: f32) {
-        let mut theta = Board::angle(dx, dy);
+        let theta = Board::angle(dx, dy);
         let n = self.state.atoms.len();
         
         // theta += 360.0 / n as f32;
@@ -279,7 +279,13 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         theta
     }
 
+    #[allow(dead_code)]
     pub fn info(&self) {
         self.state.info();
+    }
+
+    pub fn set_state_incoming(&mut self, atom_type: AtomType) {
+        self.state.incoming = Atom::from_type(atom_type);
+        self.update_shapes();
     }
 }

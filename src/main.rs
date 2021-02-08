@@ -2,11 +2,11 @@ mod game;
 mod agent;
 
 
-use game::{Board};
+use game::{AtomType, Board};
 
 use sfml::{
     graphics::{Color, Font, RenderTarget, RenderWindow}, 
-    window::{Event, Style, mouse::Button}
+    window::{Event, Key, Style, mouse::Button}
 };
 
 const WIDTH: f32 = 400.0;
@@ -42,8 +42,30 @@ fn main() {
                         board.click(x, y);
                     }
                 },
+                Event::KeyPressed { code: key, .. } => {
+                    match key {
+                        Key::P => {
+                            println!("hep hep setting plus");
+                            board.set_state_incoming(AtomType::Plus);
+                        },
+                        Key::M => {
+                            println!("hep hep setting minus");
+                            board.set_state_incoming(AtomType::Minus);
+                        },
+                        Key::D => {
+                            println!("hep hep setting dark plus");
+                            board.set_state_incoming(AtomType::DarkPlus);
+                        },
+                        Key::W => {
+                            println!("hep hep setting neutrino");
+                            board.set_state_incoming(AtomType::Neutrino);
+                        },
+
+                        _ => {}
+                    } // match key
+                },
                 _ => {}
-            }
+            } // match event
         }
         window.clear(Color::rgb(0, 0, 0));
         board.draw_on(&mut window);

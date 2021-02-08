@@ -2,7 +2,7 @@ use std::{cmp::{Ordering, max}, usize};
 
 use super::AtomShape;
 
-use rand::{Rng, thread_rng};
+use rand::Rng;
 use rand_distr::{Bernoulli, Binomial, Distribution};
 use sfml::graphics::Font;
 use lazy_static::lazy_static;
@@ -73,7 +73,7 @@ pub struct GameState<'a> {
 }
 
 impl<'a> Atom<'a> {
-    fn from_type(t: AtomType) -> Self {
+    pub fn from_type(t: AtomType) -> Self {
         Self {
             t: t,
             shape: None
