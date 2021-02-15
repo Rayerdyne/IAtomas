@@ -26,7 +26,8 @@ pub struct Board<'a, 'b> {
     state: GameState<'a>,
     minused: bool,
     best_val: u8,
-    best: Text<'b>,
+    best_text: Text<'b>,
+    score_text: Text<'b>,
     font: &'b Font,
 }
 
@@ -40,6 +41,8 @@ const POINT_COUNT: u32 = 30;
 
 const BEST_X: f32 = CIRCLE_XC;
 const BEST_Y: f32 = 20.0;
+const SCORE_X: f32 = 10.0;
+const SCORE_Y: f32 = 20.0;
 
 fn nth_atom_coord(i: usize, n: usize) -> (f32, f32) {
     if n == 0 {
@@ -134,16 +137,23 @@ impl<'a> AtomShape<'a> {
 impl<'a, 'b: 'a> Board<'a, 'b> {
     /// Create a new `Board` with given `GameState`, no shape built
     pub fn from_state(state: GameState<'a>, font: &'b Font) -> Self {
-        let mut text = Text::new(ATOMS_NAMES[0], font, 20);
-        text.set_fill_color(Color::YELLOW);
-        text.set_outline_thickness(0.3);
-        let rect = text.global_bounds();
-        text.set_position((BEST_X - rect.width / 2.0, BEST_Y));
+        let mut b_text = Text::new(ATOMS_NAMES[0], font, 20);
+        b_text.set_fill_color(Color::YELLOW);
+        b_text.set_outline_thickness(0.3);
+        let rect = b_text.global_bounds();
+        b_text.set_position((BEST_X - rect.width / 2.0, BEST_Y));
+
+        let mut s_text = Text::new("0", font, 20);
+        s_text.set_fill_color(Color::YELLOW);
+        s_text.set_outline_thickness(0.3);
+        let rect = s_text.global_bounds();
+        s_text.set_position((SCORE_X - rect.width / 2.0, SCORE_Y));
         Self {
             state: state,
             minused: false,
-            best: text,
+            best_text: b_text,
             best_val: 0,
+            score_text: s_text,
             font: font
         }
     }
@@ -206,7 +216,8 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         if let Some(shape) = &self.state.incoming.shape {
             shape.draw_on(window);
         }
-        window.draw(&self.best);
+        window.draw(&self.best_text);
+        window.draw(&self.score_text);
     }
 
     /// Reacts to a click event in `x0`, `y0`.
@@ -248,10 +259,11 @@ impl<'a, 'b: 'a> Board<'a, 'b> {
         let max = self.state.play(j as u8);
         if max > self.best_val {
             self.best_val = max;
-            self.best.set_string(ATOMS_NAMES[max as usize]);
-            let rect = self.best.global_bounds();
-            self.best.set_position((BEST_X - rect.width / 2.0, BEST_Y));
+            self.best_text.set_string(ATOMS_NAMES[max as usize]);
+            let rect = self.best_text.global_bounds();
+            self.best_text.set_position((BEST_X - rect.width / 2.0, BEST_Y));
         }
+        self.score_text.set_string(&format!("{}", self.state.score));
         self.update_shapes();
     }
 

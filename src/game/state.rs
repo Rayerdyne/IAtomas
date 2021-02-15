@@ -252,7 +252,7 @@ impl<'a> GameState<'a> {
             };
             score_multiplier += 0.5;
 
-            println!("reacting ({}, {}, {})%{} two: {:?}", k_prev, k, k_next, n, self.atoms[k_prev].t);
+            // println!("reacting ({}, {}, {})%{} two: {:?}", k_prev, k, k_next, n, self.atoms[k_prev].t);
             let (z_in, dark) = match self.atoms[k].t {
                 AtomType::Atom(z) => (z, false),
                 AtomType::DarkPlus => (0, true),
@@ -279,19 +279,19 @@ impl<'a> GameState<'a> {
             final_value = z_f;
             n = self.atoms.len();
             if n == 0 {
-                println!("n == 0 ??? ow");
+                // println!("n == 0 ??? ow");
                 return final_value;
             }
 
-            print!("reacted: {} ", k);
+            // print!("reacted: {} ", k);
             k = if k == 0 { 0 } else { (k - 1) % n };
             k_prev = safe(k, -1, n);
             k_next = safe(k, 1,  n);
-            println!("now: (k_prev, k, k_next) = ({}, {}, {}) n: {}", k_prev, k, k_next, n);
-            println!("@k_prev: {:?}", self.atoms[k_prev].t);
-            println!("@k     : {:?}", self.atoms[k].t);
-            println!("@k_next: {:?}", self.atoms[k_next].t);
-            if k_next == k_prev { println!("breaking"); break; }
+            // println!("now: (k_prev, k, k_next) = ({}, {}, {}) n: {}", k_prev, k, k_next, n);
+            // println!("@k_prev: {:?}", self.atoms[k_prev].t);
+            // println!("@k     : {:?}", self.atoms[k].t);
+            // println!("@k_next: {:?}", self.atoms[k_next].t);
+            // if k_next == k_prev { println!("breaking"); break; }
         }
         final_value
     }
@@ -306,9 +306,9 @@ impl<'a> GameState<'a> {
                 best = i;
             }
         }
-        print!("shift: {} → ", self.shift);
+        // print!("shift: {} → ", self.shift);
         self.shift = best;
-        println!("{}", self.shift);
+        // println!("{}", self.shift);
     }
 
     /// Returns `true` if the ordering beginning at `i1` is less that the one
